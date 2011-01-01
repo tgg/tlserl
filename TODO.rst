@@ -6,7 +6,6 @@ Bugs
 ====
 
 * when a log crash, the logmgr crashes as well
-* some queries (e.g. '.==1') makes the log crash
 
 
 Features
@@ -14,7 +13,6 @@ Features
 
 Log
 ---
-* **UNTESTED** ``delete_records``
 * **MISSING** ``delete_records_by_id``
 * **MISSING** ``destroy``
 * **MISSING** ``write_recordlist``
@@ -36,8 +34,7 @@ LogIterator
 Roadmap
 =======
 
-1. Implement ``delete_records``, ``delete_records_by_id`` and
-   ``write_recordlist``
+1. Implement ``delete_records_by_id`` and ``write_recordlist``
 2. Add persistence using Mnesia
 3. Handle iterator and record attributes
 4. Implement record life, size, etc. logic
