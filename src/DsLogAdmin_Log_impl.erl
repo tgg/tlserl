@@ -434,6 +434,7 @@ set_week_mask(_OE_This, State, Masks) ->
 %%----------------------------------------------------------------------
 'query'(_OE_This, State, Grammar, Constraint) ->
 	OE_Reply = filter(State, Grammar, Constraint, fun match_record/2),
+	io:format("query returning ~p~n", [OE_Reply]),
 	{reply, {OE_Reply, corba:create_nil_objref()}, State}.
 
 %%----------------------------------------------------------------------
@@ -500,7 +501,8 @@ match(_OE_This, State, Grammar, Constraint) ->
 %%----------------------------------------------------------------------
 delete_records(_OE_This, State, Grammar, Constraint) ->
 	Existing = State#state.n_records,
-	Preserved = filter(State, Grammar, Constraint, not match_record),
+	Preserved = filter(State, Grammar, Constraint,
+			   fun (E, R) -> not match_record(E, R) end),
 	Kept = length(Preserved),
 	Deleted = Existing - Kept,
 	{reply, Deleted, State#state{records=Preserved,n_records=Kept}}.
@@ -757,16 +759,25 @@ get_time() ->
 new_evaluator(Grammar, Query) ->
 	if
 	    Grammar =:= "EXTENDED_TCL" ->
-		case cosNotification_Scanner:scan(Query) of
-		    {ok, Tokens}  -> case cosNotification_Grammar:parse(Tokens) of
-					 {ok, Evaluator} ->
-					     {ok, Evaluator};
-					 {error, _What}  ->
-					     io:format("Error when parsing tokens: ~p~n", [_What]),
-					     {error, bad_constraint}
-				     end;
+		try cosNotification_Scanner:scan(Query) of
+		    {ok, Tokens}  ->
+			try cosNotification_Grammar:parse(Tokens) of
+			    {ok, Evaluator} ->
+				{ok, Evaluator};
+			    {error, _Why} ->
+				io:format("Error when parsing tokens: ~p~n", [_Why]),
+				{error, bad_constraint}
+			catch
+			    exit:_Why ->
+				io:format("Exit when parsing tokens: ~p~n", [_Why]),
+				{error, bad_constraint}
+			end;
 		    {error, _Why} ->
-			io:format("Error scanning query: ~p~n", [_Why]),
+			io:format("Error when scanning query: ~p~n", [_Why]),
+			{error, bad_constraint}
+		catch
+		    error:_Why ->
+			io:format("Exit when scanning query: ~p~n", [_Why]),
 			{error, bad_constraint}
 		end;
 	    true ->
@@ -775,7 +786,7 @@ new_evaluator(Grammar, Query) ->
 	end.
 
 match_record(Evaluator, Record) ->
-	io:format("Evaluating ~p on ~p", [Evaluator, Record]),
+	io:format("Evaluating ~p on ~p~n", [Evaluator, Record]),
 	cosNotification_Filter:eval(Evaluator, Record).
 
 filter(State, Grammar, Constraint, Predicate) ->
@@ -785,10 +796,14 @@ filter(State, Grammar, Constraint, Predicate) ->
 	    try lists:filter(fun (Record) -> Predicate(Evaluator, Record) end, Records) of
 		Records -> Records
 	    catch
-		What:Why -> io:format("~p:~p~n", [What, Why])
+		What:Why ->
+		    io:format("Error ~p:~p~n", [What, Why]),
+		    io:format("Raising InvalidConstraint~n"),
+		    corba:raise(#'DsLogAdmin_InvalidConstraint'{})
 	    end;
 	{error, unknown_grammar} ->
 	    corba:raise(#'DsLogAdmin_InvalidGrammar'{});
 	{error, bad_constraint} ->
+	    io:format("Raising InvalidConstraint~n"),
 	    corba:raise(#'DsLogAdmin_InvalidConstraint'{})
     end.
