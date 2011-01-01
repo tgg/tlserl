@@ -6,7 +6,7 @@ Bugs
 ====
 
 * when a log crash, the logmgr crashes as well
-* some queries (e.g. '$id == 1') makes the log crash
+* some queries (e.g. '.==1') makes the log crash
 
 
 Features
