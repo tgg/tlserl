@@ -794,7 +794,7 @@ filter(State, Grammar, Constraint, Predicate) ->
 	{ok, Evaluator} ->
 	    Records = State#state.records,
 	    try lists:filter(fun (Record) -> Predicate(Evaluator, Record) end, Records) of
-		Records -> Records
+		Matching -> Matching
 	    catch
 		What:Why ->
 		    io:format("Error ~p:~p~n", [What, Why]),
