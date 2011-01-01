@@ -35,6 +35,13 @@
 %% Macros
 %%----------------------------------------------------------------------
 -define(ABSOLUTE_TIME_DIFF, 49947926400).
+-define(FULL_AND_HALT,
+	#state{full_action=1,
+	       availability_status=#'DsLogAdmin_AvailabilityStatus'{log_full=true}}).
+-define(OFF_DUTY,
+	#state{availability_status=#'DsLogAdmin_AvailabilityStatus'{off_duty=true}}).
+-define(LOCKED, #state{administrative_state=locked}).
+-define(DISABLED, #state{operational_state=disabled}).
 
 %%----------------------------------------------------------------------
 %% Records
@@ -538,24 +545,9 @@ delete_records_by_id(_OE_This, State, Ids) ->
 %%              DsLogAdmin::LogDisabled
 %% Description: 
 %%----------------------------------------------------------------------
-write_records(_OE_This, #state{full_action=1, availability_status=#'DsLogAdmin_AvailabilityStatus'{log_full=true}}, _Records) ->
-	corba:raise(#'DsLogAdmin_LogFull'{n_records_written=0});
-write_records(_OE_This, #state{availability_status=#'DsLogAdmin_AvailabilityStatus'{off_duty=true}}, _Records) ->
-	corba:raise(#'DsLogAdmin_LogOffDuty'{});
-write_records(_OE_This, #state{administrative_state=locked}, _Records) ->
-	corba:raise(#'DsLogAdmin_LogLocked'{});
-write_records(_OE_This, #state{operational_state=disabled}, _Records) ->
-	corba:raise(#'DsLogAdmin_LogDisabled'{});
-write_records(_OE_This, State, Records) when is_list(Records) ->
-	Size = State#state.current_size,
-	Count = State#state.n_records,
-	try add_records(Size, Count, State#state.records, Records) of
-	    {ok, NewSize, NewCount, NewRecords} -> {reply, ok, State#state{current_size=NewSize,n_records=NewCount,records=NewRecords}}
-	catch
-	    throw:_ -> corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO})
-	end;
-write_records(_OE_This, _State, _Records) ->
-	corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
+write_records(_OE_This, State, Records) ->
+    NewState = add_records(State, anys_to_logrecords(Records)),
+    {reply, ok, NewState}.
 
 %%----------------------------------------------------------------------
 %% Function   : write_recordlist/3
@@ -578,7 +570,8 @@ write_records(_OE_This, _State, _Records) ->
 %% Description: 
 %%----------------------------------------------------------------------
 write_recordlist(_OE_This, State, List) ->
-	{reply, ok, State}.
+    NewState = add_records(State, List),
+    {reply, ok, NewState}.
 
 %%----------------------------------------------------------------------
 %% Function   : set_record_attribute/4
@@ -744,15 +737,6 @@ check_qos_list([H|T]) when is_integer(H) ->
 check_qos_list(_L) ->
 	corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
 
-add_records(S, C, L, []) -> {ok, S, C, L};
-add_records(S, C, L, [Any|Anys]) when is_record(Any, any) ->
-	Id = 1 + C,
-	Size = S + lists:flatlength(tuple_to_list(Any)),
-	NewRecord = #'DsLogAdmin_LogRecord'{id=Id, time=get_time(), attr_list=[], info=Any},
-	add_records(Size, Id, lists:reverse([NewRecord | L]), Anys);
-add_records(_S, _C, _L, _Records) ->
-	throw(bad_param).
-
 %% Copied verbatim from CosTime_TimeService_impl:create_universal_time().
 get_time() ->
 	{MS,S,US} = erlang:now(),
@@ -802,12 +786,59 @@ filter(State, Grammar, Constraint, Predicate) ->
 	    catch
 		What:Why ->
 		    io:format("Error ~p:~p~n", [What, Why]),
-		    io:format("Raising InvalidConstraint~n"),
 		    corba:raise(#'DsLogAdmin_InvalidConstraint'{})
 	    end;
 	{error, unknown_grammar} ->
 	    corba:raise(#'DsLogAdmin_InvalidGrammar'{});
 	{error, bad_constraint} ->
-	    io:format("Raising InvalidConstraint~n"),
 	    corba:raise(#'DsLogAdmin_InvalidConstraint'{})
     end.
+
+anys_to_logrecords(Anys) when is_list(Anys) ->
+    anys_to_logrecords(Anys, []);
+anys_to_logrecords(_Anys) ->
+    corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
+
+anys_to_logrecords([Any | Anys], Acc) when is_record(Any, any) ->
+    % Other elements will be set later on.
+    Record = #'DsLogAdmin_LogRecord'{attr_list=[], info=Any},
+    anys_to_logrecords(Anys, [Record | Acc]);
+anys_to_logrecords([], Acc) ->
+    lists:reverse(Acc);
+anys_to_logrecords(_Anys, _Acc) ->
+    corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
+
+record_size(Record) ->
+    lists:flatlength(tuple_to_list(Record)).
+
+next_id(State) ->
+    1 + lists:foldl(fun(X,Y) ->
+			    max(X#'DsLogAdmin_LogRecord'.id, Y)
+		    end,
+		    0, State#state.records).
+
+add_records(State, Records) ->
+    add_records(State, Records, [], 0).
+
+% TODO: error handling. Return ok or error. Do not raise CORBA exceptions here?
+add_records(?FULL_AND_HALT, _Records, _Acc, _Size) ->
+    corba:raise(#'DsLogAdmin_LogFull'{n_records_written=0});
+add_records(?OFF_DUTY, _Records, _Acc, _Size) ->
+    corba:raise(#'DsLogAdmin_LogOffDuty'{});
+add_records(?LOCKED, _Records, _Acc, _Size) ->
+    corba:raise(#'DsLogAdmin_LogLocked'{});
+add_records(?DISABLED, _Records, _Acc, _Size) ->
+    corba:raise(#'DsLogAdmin_LogDisabled'{});
+add_records(State, [Record | Records], Acc, Size)
+  when is_record(Record, 'DsLogAdmin_LogRecord') ->
+    Id = next_id(State),
+    NewRecord = Record#'DsLogAdmin_LogRecord'{id=Id, time=get_time()},
+    NewRecordSize = record_size(NewRecord),
+    add_records(State, Records, [NewRecord | Acc], Size + NewRecordSize);
+add_records(State, [], Acc, Size) ->
+    NewRecords = lists:append(State#state.records, lists:reverse(Acc)),
+    NewSize = State#state.current_size + Size,
+    NewCount = State#state.n_records + length(Acc),
+    State#state{current_size=NewSize, records=NewRecords, n_records=NewCount};
+add_records(_State, _Records, _Acc, _Size) ->
+    corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
