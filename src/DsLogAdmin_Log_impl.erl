@@ -519,7 +519,11 @@ delete_records(_OE_This, State, Grammar, Constraint) ->
 %% Description: 
 %%----------------------------------------------------------------------
 delete_records_by_id(_OE_This, State, Ids) ->
-	{reply, 0, State}.
+	Existing = State#state.n_records,
+	Preserved = lists:filter(fun(X) -> not lists:member(X#'DsLogAdmin_LogRecord'.id, Ids) end, State#state.records),
+	Kept = length(Preserved),
+	Deleted = Existing - Kept,
+	{reply, Deleted, State#state{records=Preserved,n_records=Kept}}.
 
 %%----------------------------------------------------------------------
 %% Function   : write_records/3
