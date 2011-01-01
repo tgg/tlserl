@@ -463,9 +463,9 @@ retrieve(_OE_This, State, From_time, How_many)
 	Records = State#state.records,
 	if
 	    How_many < 0 ->
-		M = lists:filter(fun (L) -> L#'DsLogAdmin_LogRecord'.time  < From_time end, Records);
+		M = lists:filter(fun(L) -> L#'DsLogAdmin_LogRecord'.time  < From_time end, Records);
 	    true ->
-		M = lists:filter(fun (L) -> L#'DsLogAdmin_LogRecord'.time >= From_time end, Records)
+		M = lists:filter(fun(L) -> L#'DsLogAdmin_LogRecord'.time >= From_time end, Records)
 	end,
 	{reply, {lists:sublist(M, abs(How_many)), corba:create_nil_objref()}, State};
 retrieve(_OE_This, _State, _From_time, _How_many) ->
@@ -502,7 +502,7 @@ match(_OE_This, State, Grammar, Constraint) ->
 delete_records(_OE_This, State, Grammar, Constraint) ->
 	Existing = State#state.n_records,
 	Preserved = filter(State, Grammar, Constraint,
-			   fun (E, R) -> not match_record(E, R) end),
+			   fun(E, R) -> not match_record(E, R) end),
 	Kept = length(Preserved),
 	Deleted = Existing - Kept,
 	{reply, Deleted, State#state{records=Preserved,n_records=Kept}}.
@@ -797,7 +797,7 @@ filter(State, Grammar, Constraint, Predicate) ->
     case new_evaluator(Grammar, Constraint) of
 	{ok, Evaluator} ->
 	    Records = State#state.records,
-	    try lists:filter(fun (Record) -> Predicate(Evaluator, Record) end, Records) of
+	    try lists:filter(fun(Record) -> Predicate(Evaluator, Record) end, Records) of
 		Matching -> Matching
 	    catch
 		What:Why ->
