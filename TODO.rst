@@ -20,7 +20,6 @@ Features
 Log
 ---
 * **MISSING** ``destroy``
-* **MISSING** ``write_recordlist``
 * **MISSING** ``set_record_attribute``
 * **MISSING** ``get_record_attribute``
 * **MISSING** ``set_records_attribute``
@@ -36,10 +35,12 @@ Complete :-)
 LogIterator
 -----------
 
+Nothing is written
+
 Roadmap
 =======
 
-1. Implement ``write_recordlist``
+1. COMPLETE
 2. Add persistence using Mnesia, then go public
 3. Handle iterator and record attributes
 4. Implement record life, size, etc. logic
