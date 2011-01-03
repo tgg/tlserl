@@ -41,7 +41,9 @@ Roadmap
 =======
 
 1. COMPLETE
-2. Add persistence using Mnesia, then go public
-3. Handle iterator and record attributes
-4. Implement record life, size, etc. logic
-5. Add ``copy`` and remaining things
+2. Use catch. Make a real app, then go public
+3. Write ETCL -> qlc:Q converter. The add persistence using Mnesia.
+   See http://dukesoferl.blogspot.com/2009/08/metaprogramming-with-ctexpand.html
+4. Handle iterator and record attributes
+5. Implement record life, size, etc. logic
+6. Add ``copy`` and remaining things
