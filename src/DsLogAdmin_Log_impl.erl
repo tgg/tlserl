@@ -27,6 +27,7 @@
 %% Include Files
 %%----------------------------------------------------------------------
 -include_lib("orber/include/corba.hrl").
+-include_lib("stdlib/include/qlc.hrl").
 
 -include("TimeBase.hrl").
 -include("DsLogAdmin.hrl").
@@ -60,8 +61,7 @@
 		interval = #'TimeBase_IntervalT'{lower_bound=0, upper_bound=0},
 		availability_status = #'DsLogAdmin_AvailabilityStatus'{off_duty=false, log_full=false},
 		capacity_alarm_thresholds = [],
-		week_mask = [],
-		records = []}).
+		week_mask = []}).
 
 %%======================================================================
 %% API Functions
@@ -467,12 +467,11 @@ set_week_mask(_OE_This, State, Masks) ->
 retrieve(_OE_This, State, From_time, How_many)
   when is_integer(From_time) andalso From_time >= 0
        andalso is_integer(How_many) ->
-	Records = State#state.records,
 	if
 	    How_many < 0 ->
-		M = lists:filter(fun(L) -> L#'DsLogAdmin_LogRecord'.time  < From_time end, Records);
+		M = do(qlc:q([L || L <- table(State), L#'DsLogAdmin_LogRecord'.time  < From_time]));
 	    true ->
-		M = lists:filter(fun(L) -> L#'DsLogAdmin_LogRecord'.time >= From_time end, Records)
+		M = do(qlc:q([L || L <- table(State), L#'DsLogAdmin_LogRecord'.time >= From_time]))
 	end,
 	{reply, {lists:sublist(M, abs(How_many)), corba:create_nil_objref()}, State};
 retrieve(_OE_This, _State, _From_time, _How_many) ->
@@ -512,7 +511,8 @@ delete_records(_OE_This, State, Grammar, Constraint) ->
 			   fun(E, R) -> not match_record(E, R) end),
 	Kept = length(Preserved),
 	Deleted = Existing - Kept,
-	{reply, Deleted, State#state{records=Preserved,n_records=Kept}}.
+	%% TODO does not delete anything
+	{reply, Deleted, State#state{n_records=Kept}}.
 
 %%----------------------------------------------------------------------
 %% Function   : delete_records_by_id/3
@@ -526,11 +526,11 @@ delete_records(_OE_This, State, Grammar, Constraint) ->
 %% Description: 
 %%----------------------------------------------------------------------
 delete_records_by_id(_OE_This, State, Ids) ->
-	Existing = State#state.n_records,
-	Preserved = lists:filter(fun(X) -> not lists:member(X#'DsLogAdmin_LogRecord'.id, Ids) end, State#state.records),
-	Kept = length(Preserved),
-	Deleted = Existing - Kept,
-	{reply, Deleted, State#state{records=Preserved,n_records=Kept}}.
+	%% Existing = State#state.n_records,
+	%% Preserved = lists:filter(fun(X) -> not lists:member(X#'DsLogAdmin_LogRecord'.id, Ids) end, State#state.records),
+	%% Kept = length(Preserved),
+	%% Deleted = Existing - Kept,
+	{reply, 0, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : write_records/3
@@ -680,7 +680,14 @@ flush(_OE_This, State) ->
 %% Description: Initiates the server
 %%----------------------------------------------------------------------
 init([Factory, Id, Full_action, Max_size]) ->
-	{ok, #state{factory=Factory, id=Id, full_action=Full_action, max_size=Max_size}}.
+    State = #state{factory=Factory,
+		   id=Id,
+		   full_action=Full_action,
+		   max_size=Max_size},
+    {atomic, ok} = mnesia:create_table(name(State),
+				       [{attributes, record_info(fields, 'DsLogAdmin_LogRecord')},
+					{record_name, 'DsLogAdmin_LogRecord'}]),
+    {ok, State}.
 
 
 %%----------------------------------------------------------------------
@@ -774,20 +781,22 @@ new_evaluator(Grammar, Query) ->
 	end.
 
 match_record(Evaluator, Record) ->
-	io:format("Evaluating ~p on ~p~n", [Evaluator, Record]),
 	cosNotification_Filter:eval(Evaluator, Record).
+
+do_evaluate(Record, {Predicate, Evaluator, Acc} = Args) ->
+    case Predicate(Evaluator, Record) of
+	true -> {Predicate, Evaluator, [Record|Acc]};
+	_    -> Args
+    end.
 
 filter(State, Grammar, Constraint, Predicate) ->
     case new_evaluator(Grammar, Constraint) of
 	{ok, Evaluator} ->
-	    Records = State#state.records,
-	    try lists:filter(fun(Record) -> Predicate(Evaluator, Record) end, Records) of
-		Matching -> Matching
-	    catch
-		What:Why ->
-		    io:format("Error ~p:~p~n", [What, Why]),
-		    corba:raise(#'DsLogAdmin_InvalidConstraint'{})
-	    end;
+	    F = fun () ->
+			mnesia:foldl(fun do_evaluate/2, {Predicate, Evaluator, []}, name(State))
+		end,
+	    {atomic, Val} = mnesia:transaction(F),
+	    Val;
 	{error, unknown_grammar} ->
 	    corba:raise(#'DsLogAdmin_InvalidGrammar'{});
 	{error, bad_constraint} ->
@@ -811,16 +820,34 @@ anys_to_logrecords(_Anys, _Acc) ->
 record_size(Record) ->
     lists:flatlength(tuple_to_list(Record)).
 
+next_id(Record, Max) ->
+    max(Record#'DsLogAdmin_LogRecord'.id, Max).
+
 next_id(State) ->
-    1 + lists:foldl(fun(X,Y) ->
-			    max(X#'DsLogAdmin_LogRecord'.id, Y)
-		    end,
-		    0, State#state.records).
+    F = fun () ->
+		1 + mnesia:foldl(fun next_id/2, 0, name(State))
+	end,
+    {atomic, Id} = mnesia:transaction(F),
+    Id.
+
+name(State) ->
+    list_to_atom("tlsb_" ++ erlang:integer_to_list(State#state.id, 10)).
+
+do(Q) ->
+    F = fun () ->
+		qlc:e(Q)
+	end,
+    {atomic, Val} = mnesia:transaction(F),
+    Val.
+
+table(State) ->
+    mnesia:table(name(State)).
 
 add_records(State, Records) ->
     add_records(State, Records, [], 0).
 
 % TODO: error handling. Return ok or error. Do not raise CORBA exceptions here?
+% TODO: remove Acc
 add_records(?FULL_AND_HALT, _Records, _Acc, _Size) ->
     corba:raise(#'DsLogAdmin_LogFull'{n_records_written=0});
 add_records(?OFF_DUTY, _Records, _Acc, _Size) ->
@@ -834,11 +861,15 @@ add_records(State, [Record | Records], Acc, Size)
     Id = next_id(State),
     NewRecord = Record#'DsLogAdmin_LogRecord'{id=Id, time=get_time()},
     NewRecordSize = record_size(NewRecord),
+    Table = name(State),
+    F = fun () ->
+		mnesia:write(Table, NewRecord, write)
+	end,
+    {_, Val} = mnesia:transaction(F),
     add_records(State, Records, [NewRecord | Acc], Size + NewRecordSize);
 add_records(State, [], Acc, Size) ->
-    NewRecords = lists:append(State#state.records, lists:reverse(Acc)),
     NewSize = State#state.current_size + Size,
     NewCount = State#state.n_records + length(Acc),
-    State#state{current_size=NewSize, records=NewRecords, n_records=NewCount};
+    State#state{current_size=NewSize, n_records=NewCount};
 add_records(_State, _Records, _Acc, _Size) ->
     corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
