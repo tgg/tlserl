@@ -795,7 +795,7 @@ filter(State, Grammar, Constraint, Predicate) ->
 	    F = fun () ->
 			mnesia:foldl(fun do_evaluate/2, {Predicate, Evaluator, []}, name(State))
 		end,
-	    {atomic, Val} = mnesia:transaction(F),
+	    {atomic, {_, _, Val}} = mnesia:transaction(F),
 	    Val;
 	{error, unknown_grammar} ->
 	    corba:raise(#'DsLogAdmin_InvalidGrammar'{});
