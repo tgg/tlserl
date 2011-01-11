@@ -13,6 +13,14 @@ Misc
 
 * decide which license to use. How is licensed Erlang itself? What about Erlang
   projects?
+* Store the name in State instead of recomputing it every time.
+* Remove generated files
+* Use same IDL as tlscli
+* Open or create mnesia tables
+* Package as an app
+* Decide style
+* Use mnesia:select
+
 
 Features
 ========
@@ -40,9 +48,10 @@ Nothing is written
 Roadmap
 =======
 
-1. COMPLETE
-2. Use catch. Make a real app, then go public
-3. Write ETCL -> qlc:Q converter. The add persistence using Mnesia.
+1. Implement ``write``, ``query`` and ``delete``. COMPLETED ON 2011-01-01
+2. Mnesia-ification
+3. Package as an app
+   Possibly: write ETCL -> qlc:Q converter.
    See http://dukesoferl.blogspot.com/2009/08/metaprogramming-with-ctexpand.html
 4. Handle iterator and record attributes
 5. Implement record life, size, etc. logic
