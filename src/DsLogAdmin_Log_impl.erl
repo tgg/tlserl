@@ -52,8 +52,6 @@
 		qos = ['DsLogAdmin':'QoSNone'()],
 		max_record_life = 0,
 		max_size = 0,
-		current_size = 0,
-		n_records = 0,
 		full_action,
 	        administrative_state = unlocked,
 		forward_state = off,
@@ -193,7 +191,8 @@ set_max_size(_OE_This, _State, _Size) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_current_size(_OE_This, State) ->
-	{reply, State#state.current_size, State}.
+    Name = name(State),
+    {reply, mnesia:table_info(Name, memory), State}.
 
 %%----------------------------------------------------------------------
 %% Function   : get_n_records/2
@@ -205,7 +204,8 @@ get_current_size(_OE_This, State) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_n_records(_OE_This, State) ->
-	{reply, State#state.n_records, State}.
+    Name = name(State),
+    {reply, mnesia:table_info(Name, size), State}.
 
 %%----------------------------------------------------------------------
 %% Function   : get_log_full_action/2
@@ -506,13 +506,14 @@ match(_OE_This, State, Grammar, Constraint) ->
 %% Description: 
 %%----------------------------------------------------------------------
 delete_records(_OE_This, State, Grammar, Constraint) ->
-	Existing = State#state.n_records,
-	Preserved = filter(State, Grammar, Constraint,
-			   fun(E, R) -> not match_record(E, R) end),
-	Kept = length(Preserved),
-	Deleted = Existing - Kept,
-	%% TODO does not delete anything
-	{reply, Deleted, State#state{n_records=Kept}}.
+    F = fun() ->
+		Ids = filter(State, Grammar, Constraint,
+			     fun match_record/2,
+			     fun(R) -> R#'DsLogAdmin_LogRecord'.id end),
+		delete_records_by_id(_OE_This, State, Ids)
+	end,
+    {atomic, Reply} = mnesia:transaction(F),
+    Reply.
 
 %%----------------------------------------------------------------------
 %% Function   : delete_records_by_id/3
@@ -526,11 +527,9 @@ delete_records(_OE_This, State, Grammar, Constraint) ->
 %% Description: 
 %%----------------------------------------------------------------------
 delete_records_by_id(_OE_This, State, Ids) ->
-	%% Existing = State#state.n_records,
-	%% Preserved = lists:filter(fun(X) -> not lists:member(X#'DsLogAdmin_LogRecord'.id, Ids) end, State#state.records),
-	%% Kept = length(Preserved),
-	%% Deleted = Existing - Kept,
-	{reply, 0, State}.
+    Name = name(State),
+    Oids = [{Name, Id} || Id <- Ids],
+    {reply, delete_records(Name, Oids, 0), State}.
 
 %%----------------------------------------------------------------------
 %% Function   : write_records/3
@@ -783,19 +782,25 @@ new_evaluator(Grammar, Query) ->
 match_record(Evaluator, Record) ->
 	cosNotification_Filter:eval(Evaluator, Record).
 
-do_evaluate(Record, {Predicate, Evaluator, Acc} = Args) ->
+do_evaluate(Record, {Predicate, Filter, Evaluator, Acc} = Args) ->
     case Predicate(Evaluator, Record) of
-	true -> {Predicate, Evaluator, [Record|Acc]};
+	true -> {Predicate, Filter, Evaluator, [Filter(Record)|Acc]};
 	_    -> Args
     end.
 
+identity(Something) ->
+    Something.
+
 filter(State, Grammar, Constraint, Predicate) ->
+    filter(State, Grammar, Constraint, Predicate, fun identity/1).
+
+filter(State, Grammar, Constraint, Predicate, Filter) ->
     case new_evaluator(Grammar, Constraint) of
 	{ok, Evaluator} ->
 	    F = fun () ->
-			mnesia:foldl(fun do_evaluate/2, {Predicate, Evaluator, []}, name(State))
+			mnesia:foldl(fun do_evaluate/2, {Predicate, Filter, Evaluator, []}, name(State))
 		end,
-	    {atomic, {_, _, Val}} = mnesia:transaction(F),
+	    {atomic, {_, _, _, Val}} = mnesia:transaction(F),
 	    Val;
 	{error, unknown_grammar} ->
 	    corba:raise(#'DsLogAdmin_InvalidGrammar'{});
@@ -816,9 +821,6 @@ anys_to_logrecords([], Acc) ->
     lists:reverse(Acc);
 anys_to_logrecords(_Anys, _Acc) ->
     corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
-
-record_size(Record) ->
-    lists:flatlength(tuple_to_list(Record)).
 
 next_id(Record, Max) ->
     max(Record#'DsLogAdmin_LogRecord'.id, Max).
@@ -843,33 +845,37 @@ do(Q) ->
 table(State) ->
     mnesia:table(name(State)).
 
-add_records(State, Records) ->
-    add_records(State, Records, [], 0).
-
 % TODO: error handling. Return ok or error. Do not raise CORBA exceptions here?
-% TODO: remove Acc
-add_records(?FULL_AND_HALT, _Records, _Acc, _Size) ->
+add_records(?FULL_AND_HALT, _Records) ->
     corba:raise(#'DsLogAdmin_LogFull'{n_records_written=0});
-add_records(?OFF_DUTY, _Records, _Acc, _Size) ->
+add_records(?OFF_DUTY, _Records) ->
     corba:raise(#'DsLogAdmin_LogOffDuty'{});
-add_records(?LOCKED, _Records, _Acc, _Size) ->
+add_records(?LOCKED, _Records) ->
     corba:raise(#'DsLogAdmin_LogLocked'{});
-add_records(?DISABLED, _Records, _Acc, _Size) ->
+add_records(?DISABLED, _Records) ->
     corba:raise(#'DsLogAdmin_LogDisabled'{});
-add_records(State, [Record | Records], Acc, Size)
+add_records(State, [Record | Records])
   when is_record(Record, 'DsLogAdmin_LogRecord') ->
     Id = next_id(State),
     NewRecord = Record#'DsLogAdmin_LogRecord'{id=Id, time=get_time()},
-    NewRecordSize = record_size(NewRecord),
     Table = name(State),
     F = fun () ->
 		mnesia:write(Table, NewRecord, write)
 	end,
     {_, Val} = mnesia:transaction(F),
-    add_records(State, Records, [NewRecord | Acc], Size + NewRecordSize);
-add_records(State, [], Acc, Size) ->
-    NewSize = State#state.current_size + Size,
-    NewCount = State#state.n_records + length(Acc),
-    State#state{current_size=NewSize, n_records=NewCount};
-add_records(_State, _Records, _Acc, _Size) ->
+    add_records(State, Records);
+add_records(State, []) ->
+    State;
+add_records(_State, _Records) ->
     corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
+
+delete_records(Name, [Oid | Oids], Count) ->
+    F = fun() ->
+		Match = mnesia:read(Oid),
+		mnesia:delete(Oid),
+		length(Match)
+	end,
+    {atomic, N} = mnesia:transaction(F),
+    delete_records(Name, Oids, N + Count);
+delete_records(_Name, [], Count) ->
+    Count.
