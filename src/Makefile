@@ -13,7 +13,9 @@ MODULES = \
 	DsLogAdmin_Common \
 	DsLogAdmin_Factory_impl \
 	DsLogAdmin_Iterator_impl \
-	DsLogAdmin_Log_impl
+	DsLogAdmin_Log_impl \
+	dsLogAdminApp \
+	dsLogAdminSup
 
 ERL_FILES = $(MODULE:%=.erl)
 

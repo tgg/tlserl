@@ -3,7 +3,8 @@
   {vsn, "%VSN%"},
   {modules,
        [
-        'dsLogAdminApp',
+	'dsLogAdminSup',
+	'dsLogAdminApp',
 	'oe_DsLogAdmin',
 	'DsLogAdmin',
 	'DsLogAdmin_Anys',
@@ -51,7 +52,7 @@
 	'DsLogAdmin_Log_impl'
        ]
   },
-  {registered, [dsLogAdminSup]},
+  {registered, [dsLogAdminSup, oe_dsBasicLogFactory]},
   {applications, [orber, stdlib, kernel]},
   {env, []},
   {mod, {dsLogAdminApp, []}}
