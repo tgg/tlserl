@@ -99,6 +99,9 @@ ERL_COMPILE_FLAGS += \
 
 opt: $(TARGET_FILES) $(APP_TARGET) $(APPUP_TARGET)
 
+clean:
+	rm -f $(EXTERNAL_INC_PATH)/* $(EBIN)/* *~ $(GEN_DSLOGADMIN_ERL_FILES)
+
 $(APP_TARGET): $(APP_SRC) ../vsn.mk
 	sed -e 's;%VSN%;$(VSN);' $< > $@
 
