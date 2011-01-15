@@ -22,7 +22,7 @@
 	'DsLogAdmin_InvalidThreshold',
 	'DsLogAdmin_InvalidTime',
 	'DsLogAdmin_InvalidTimeInterval',
-	'DsLogAdmin_Iterator,
+	'DsLogAdmin_Iterator',
 	'DsLogAdmin_Log',
 	'DsLogAdmin_LogDisabled',
 	'DsLogAdmin_LogFull',
@@ -51,7 +51,7 @@
 	'DsLogAdmin_Log_impl'
        ]
   },
-  {registered, []},
+  {registered, [dsLogAdminSup]},
   {applications, [orber, stdlib, kernel]},
   {env, []},
   {mod, {dsLogAdminApp, []}}
