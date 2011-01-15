@@ -5,8 +5,10 @@ TODO for ``tlserl``
 Bugs
 ====
 
-* when a log crash, the logmgr crashes as well
+* when a log crash, the logmgr crashes as well => spawn
 * Check all argument types for CORBA calls
+* use disk_log instead?
+* use error_logger
 
 Misc
 ====
@@ -14,10 +16,8 @@ Misc
 * decide which license to use. How is licensed Erlang itself? What about Erlang
   projects?
 * Store the name in State instead of recomputing it every time.
-* Remove generated files
 * Use same IDL as tlscli
 * Open or create mnesia tables
-* Package as an app
 * Decide style
 * Use mnesia:select
 
@@ -50,9 +50,10 @@ Roadmap
 
 1. Implement ``write``, ``query`` and ``delete``. COMPLETED ON 2011-01-01
 2. Mnesia-ification
-3. Package as an app
+   Package as an app. COMPLETED ON 2011-01-16
+   Licence then go public
+3. Handle iterator and record attributes
    Possibly: write ETCL -> qlc:Q converter.
    See http://dukesoferl.blogspot.com/2009/08/metaprogramming-with-ctexpand.html
-4. Handle iterator and record attributes
-5. Implement record life, size, etc. logic
-6. Add ``copy`` and remaining things
+4. Implement record life, size, etc. logic
+5. Add ``copy`` and remaining things
