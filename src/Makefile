@@ -77,7 +77,6 @@ GEN_DSLOGADMIN_ERL_FILES = \
 	DsLogAdmin_Time24.erl \
 	DsLogAdmin_Time24Interval.erl \
 	DsLogAdmin_TimeInterval.erl \
-	DsLogAdmin_TimeIntervalSeq.erl \
 	DsLogAdmin_UnsupportedQoS.erl \
 	DsLogAdmin_WeekMask.erl \
 	DsLogAdmin_WeekMaskItem.erl \
