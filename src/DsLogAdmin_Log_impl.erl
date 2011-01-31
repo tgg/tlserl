@@ -75,6 +75,7 @@
 %%----------------------------------------------------------------------
 -define(ABSOLUTE_TIME_DIFF, 49947926400).
 -define(LOG_NAME(S), S#state.table_name).
+-define(ATTR_NAME(S), S#state.log_attr_table_name).
 -define(LOG_ATTR(S, A), S#state.attributes#log_attributes.A).
 
 %%======================================================================
@@ -89,8 +90,8 @@
 %% Description: 
 %%----------------------------------------------------------------------
 destroy(OE_This, State) ->
-	%% TODO does not work
-	{reply, corba:dispose(OE_This), State}.
+    %% TODO does not work
+    {reply, corba:dispose(OE_This), State}.
 
 %%----------------------------------------------------------------------
 %% Function   : my_factory/2
@@ -293,7 +294,7 @@ get_forwarding_state(_OE_This, State) ->
 %%              ForwardingState = 'on' | 'off' 
 %% Returns    : ReturnValue = ok
 %% Raises     : 
-%% Description: 
+%% Description: TODO
 %%----------------------------------------------------------------------
 set_forwarding_state(_OE_This, State, ForwardingState)
   when ForwardingState =:= on; ForwardingState =:= off ->
@@ -309,7 +310,7 @@ set_forwarding_state(_OE_This, _State, _ForwardingState) ->
 %%              OE_Reply = OperationalState
 %%              OperationalState = 'disabled' | 'enabled' 
 %% Raises     : 
-%% Description: 
+%% Description: TODO
 %%----------------------------------------------------------------------
 get_operational_state(_OE_This, State) ->
     {reply, enabled, State}.
@@ -338,7 +339,7 @@ get_interval(_OE_This, State) ->
 %% Returns    : ReturnValue = ok
 %% Raises     : DsLogAdmin::InvalidTime
 %%              DsLogAdmin::InvalidTimeInterval
-%% Description: 
+%% Description: TODO
 %%----------------------------------------------------------------------
 set_interval(_OE_This, State, Interval) ->
     {reply, ok, State}.
@@ -352,7 +353,7 @@ set_interval(_OE_This, State, Interval) ->
 %%              off_duty = boolean()
 %%              log_full = boolean()
 %% Raises     : 
-%% Description: 
+%% Description: TODO
 %%----------------------------------------------------------------------
 get_availability_status(_OE_This, State) ->
     {reply, #'DsLogAdmin_AvailabilityStatus'{off_duty=false, log_full=false}, State}.
@@ -701,6 +702,9 @@ init(Env) ->
 	[{attributes, Attr}, {table_name, LogAttrName}, {factory, Fid, Factory}] ->
 	    Id = Attr#log_attributes.id,
 	    LogName = log_table_name(Fid, Id),
+	    {ok, _} = 'DsLogAdmin_Common':create_table(LogName,
+						       record_info(fields, 'DsLogAdmin_LogRecord'),
+						       'DsLogAdmin_LogRecord'),
 	    State = #state{table_name=LogName,
 			   log_attr_table_name=LogAttrName,
 			   factory=Factory},
@@ -708,14 +712,9 @@ init(Env) ->
     end.
 
 save_attributes(State, Attributes) ->
-    F = fun () -> mnesia:write(?LOG_NAME(State), Attributes, write) end,
+    F = fun () -> mnesia:write(?ATTR_NAME(State), Attributes, write) end,
     {atomic, ok} = mnesia:transaction(F),
     State#state{attributes=Attributes}.
-
-    %% {atomic, ok} = mnesia:create_table(name(State),
-    %% 				       [{attributes, record_info(fields, 'DsLogAdmin_LogRecord')},
-    %% 					{record_name, 'DsLogAdmin_LogRecord'}]),
-    %% {ok, State}.
 
 
 %%----------------------------------------------------------------------
@@ -860,9 +859,6 @@ next_id(State) ->
 	end,
     {atomic, Id} = mnesia:transaction(F),
     Id.
-
-log_table_name(Id) ->
-    list_to_atom("oe_tlsb_" ++ erlang:integer_to_list(Id, 10)).
 
 % TODO: error handling. Return ok or error. Do not raise CORBA exceptions here?
 add_records(State, [Record | Records])
