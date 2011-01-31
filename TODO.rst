@@ -7,20 +7,19 @@ Bugs
 
 * when a log crash, the logmgr crashes as well => spawn
 * Check all argument types for CORBA calls
+* many race conditions (check for an id then creating it)
+
+Ideas
+=====
+* persistent IOR? What about imr?
 * use disk_log instead?
 * use error_logger
 
 Misc
 ====
 
-* decide which license to use. How is licensed Erlang itself? What about Erlang
-  projects?
-* Store the name in State instead of recomputing it every time.
-* Use same IDL as tlscli
-* Open or create mnesia tables
 * Decide style
 * Use mnesia:select
-
 
 Features
 ========
@@ -50,8 +49,8 @@ Roadmap
 
 1. Implement ``write``, ``query`` and ``delete``. COMPLETED ON 2011-01-01
 2. Mnesia-ification
-   Package as an app. COMPLETED ON 2011-01-16
-   Licence then go public
+   Package as an app. Licence. COMPLETED ON 2011-01-16
+   Go public.
 3. Handle iterator and record attributes
    Possibly: write ETCL -> qlc:Q converter.
    See http://dukesoferl.blogspot.com/2009/08/metaprogramming-with-ctexpand.html

@@ -2,7 +2,7 @@
 %%
 %% %CopyrightBegin%
 %% 
-%% Copyright Thomas Girard <thomas.g.girard@free.fr> 2011.
+%% Copyright © 2011, Thomas Girard <thomas.g.girard@free.fr>
 %% All Rights Reserved.
 %% 
 %% The contents of this file are subject to the Erlang Public License,

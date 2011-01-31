@@ -1,7 +1,7 @@
 #
 # %CopyrightBegin%
 # 
-# Copyright Thomas Girard <thomas.g.girard@free.fr> 2011.
+# Copyright © 2011, Thomas Girard <thomas.g.girard@free.fr>
 # All Rights Reserved.
 # 
 # The contents of this file are subject to the Erlang Public License,
@@ -122,7 +122,7 @@ ERL_COMPILE_FLAGS += \
 opt: $(TARGET_FILES) $(APP_TARGET) $(APPUP_TARGET)
 
 clean:
-	rm -f $(EXTERNAL_INC_PATH)/* $(EBIN)/* *~ $(GEN_DSLOGADMIN_ERL_FILES)
+	rm -f $(EXTERNAL_DSLOGADMIN_HRL_FILES) $(EXTERNAL_TIMEBASE_HRL_FILES) $(EBIN)/* *~ $(GEN_DSLOGADMIN_ERL_FILES)
 
 $(APP_TARGET): $(APP_SRC) ../vsn.mk
 	sed -e 's;%VSN%;$(VSN);' $< > $@

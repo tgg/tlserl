@@ -2,7 +2,7 @@
 %%
 %% %CopyrightBegin%
 %% 
-%% Copyright Thomas Girard <thomas.g.girard@free.fr> 2011.
+%% Copyright © 2011, Thomas Girard <thomas.g.girard@free.fr>
 %% All Rights Reserved.
 %% 
 %% The contents of this file are subject to the Erlang Public License,
@@ -23,12 +23,54 @@
 %% File    : DsLogAdmin_Factory_impl.erl
 %% Purpose : Implementation of DsLogAdmin:BasicLogFactory.
 %%----------------------------------------------------------------------
+%% Table   : oe_tlsbf
+%% Purpose : contains the list of all LogMgr implementations, along
+%%           with the associated object reference:
+%%
+%%  +------------+------------------+
+%%  | Factory Id | Object reference |
+%%  +------------+------------------+
+%%  |            |                  |
+%%  +------------+------------------+
+%%
+%%----------------------------------------------------------------------
+%% Table   : oe_tlsbf_n_log_attr
+%% Purpose : contains the log ids and attributes for log factory n:
+%%
+%%  +----+-----+------+------+-----+------+-----+-----+-----+-----+----+
+%%  | Id | Log | Full | M sz | QoS | M lf | Adm | Fwd | Int | Thr | Wk |
+%%  +----+-----+------+------+-----+------+-----+-----+-----+-----+----+
+%%  |    |     |      |      |     |      |     |     |     |     |    |
+%%  +----+-----+------+------+-----+------+-----+-----+-----+-----+----+
+%%
+%%  * Id   -- the log id
+%%  * Log  -- the log object reference
+%%  * Full -- the action to perform when the log is full
+%%  * M sz -- the max size of the log
+%%  * QoS  -- QoS settings
+%%  * M lf -- maximum life of log records
+%%  * Adm  -- administrative state of the log
+%%  * Fwd  -- forwarding state of the log
+%%  * Int  -- log interval
+%%  * Thr  -- capacity alarm thresholds
+%%  * Wk   -- week mask
+%%
+%%----------------------------------------------------------------------
 
 -module('DsLogAdmin_Factory_impl').
 
+%%----------------------------------------------------------------------
+%% Include Files
+%%----------------------------------------------------------------------
 -include_lib("orber/include/corba.hrl").
--include("DsLogAdmin.hrl").
+-include_lib("stdlib/include/qlc.hrl").
 
+-include("DsLogAdmin.hrl").
+-include("DsLogAdmin_Common.hrl").
+
+%%----------------------------------------------------------------------
+%% API Exports
+%%----------------------------------------------------------------------
 -export([create/4, create_with_id/5]).
 -export([list_logs/2, find_log/3, list_logs_by_id/2]).
 
@@ -39,6 +81,19 @@
          terminate/2,
          code_change/3,
          handle_info/2]).
+
+%%----------------------------------------------------------------------
+%% Records
+%%----------------------------------------------------------------------
+-record(state,
+	{id,
+	 table_name}).
+
+%%----------------------------------------------------------------------
+%% Macros
+%%----------------------------------------------------------------------
+-define(LOG_ATTR_NAME(S), S#state.table_name).
+-define(LOG_ATTR_TABLE(S), mnesia:table(S#state.table_name)).
 
 %%======================================================================
 %% API Functions
@@ -53,12 +108,12 @@
 %%              OE_Reply = Object_Ref()
 %%              Id = unsigned_Long()
 %% Raises     : DsLogAdmin::InvalidLogFullAction
-%% Description: 
+%% Description: Creates a new log
 %%----------------------------------------------------------------------
 create(OE_This, State, Full_action, Max_size) ->
-	Id = next_id(State),
-	OE_Reply = new_log(OE_This, Id, Full_action, Max_size),
-	{reply, {OE_Reply, Id}, [OE_Reply | State]}.
+    Id = next_log_id(State),
+    OE_Reply = new_log(OE_This, State, Id, Full_action, Max_size),
+    {reply, {OE_Reply, Id}, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : create_with_id/5
@@ -71,14 +126,16 @@ create(OE_This, State, Full_action, Max_size) ->
 %%              OE_Reply = Object_Ref()
 %% Raises     : DsLogAdmin::LogIdAlreadyExists
 %%              DsLogAdmin::InvalidLogFullAction
-%% Description: 
+%% Description: Creates a new log with id `Id'
 %%----------------------------------------------------------------------
 create_with_id(OE_This, State, Id, Full_action, Max_size) ->
-	case lookup(State, Id) of
-	    [] -> OE_Reply = new_log(OE_This, Id, Full_action, Max_size),
-		  {reply, {OE_Reply, Id}, [OE_Reply | State]};
-	    _  -> corba:raise(#'DsLogAdmin_LogIdAlreadyExists'{})
-	end.
+    case lookup(State, Id) of
+	[] ->
+	    OE_Reply = new_log(OE_This, State, Id, Full_action, Max_size),
+	    {reply, {OE_Reply, Id}, State};
+	_  ->
+	    corba:raise(#'DsLogAdmin_LogIdAlreadyExists'{})
+    end.
 
 %%----------------------------------------------------------------------
 %% Function   : list_logs/2
@@ -88,10 +145,13 @@ create_with_id(OE_This, State, Id, Full_action, Max_size) ->
 %%              OE_Reply = [ OE_ReplyElem ]
 %%              OE_ReplyElem = Object_Ref()
 %% Raises     : 
-%% Description: 
+%% Description: Retrieves all existing logs associated to this log
+%%              manager
 %%----------------------------------------------------------------------
 list_logs(_OE_This, State) ->
-	{reply, State, State}.
+    Query = qlc:q([L#log_attributes.objref || L <- ?LOG_ATTR_TABLE(State)]),
+    Logs = 'DsLogAdmin_Common':do(Query),
+    {reply, Logs, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : find_log/3
@@ -101,14 +161,14 @@ list_logs(_OE_This, State) ->
 %% Returns    : ReturnValue = OE_Reply
 %%              OE_Reply = Object_Ref()
 %% Raises     : 
-%% Description: 
+%% Description: Retrieves log with id `Id'
 %%----------------------------------------------------------------------
 find_log(_OE_This, State, Id) ->
-	OE_Reply = case lookup(State, Id) of
-		       []    -> corba:create_nil_objref();
-		       [H|_] -> H
-		   end,
-	{reply, OE_Reply, State}.
+    OE_Reply = case lookup(State, Id) of
+		   []    -> corba:create_nil_objref();
+		   [H|_] -> H
+	       end,
+    {reply, OE_Reply, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : list_logs_by_id/2
@@ -118,11 +178,12 @@ find_log(_OE_This, State, Id) ->
 %%              OE_Reply = [ OE_ReplyElem ]
 %%              OE_ReplyElem = unsigned_Long()
 %% Raises     : 
-%% Description: 
+%% Description: Retrieves all logs id
 %%----------------------------------------------------------------------
 list_logs_by_id(_OE_This, State) ->
-	OE_Reply = lists:map(fun(L) -> 'DsLogAdmin_Log':id(L) end, State),
-	{reply, OE_Reply, State}.
+    Query = qlc:q([L#log_attributes.id || L <- ?LOG_ATTR_TABLE(State)]),
+    OE_Reply = 'DsLogAdmin_Common':do(Query),
+    {reply, OE_Reply, State}.
 
 
 %%======================================================================
@@ -136,10 +197,15 @@ list_logs_by_id(_OE_This, State) ->
 %%              ignore               |
 %%              {stop, Reason}
 %% Raises     : -
-%% Description: Initiates the server
+%% Description: Initiates server, creating oe_tlsbf table if needed.
 %%----------------------------------------------------------------------
-init(_Env) ->
-	{ok, []}.
+init(Env) ->
+    case get_log_mgr_id(Env) of
+	{ok, Id} ->
+	    new_log_mgr(Id);
+	{error, Reason} ->
+	    {stop, Reason}
+    end.
 
 %%----------------------------------------------------------------------
 %% Function   : terminate/2
@@ -150,7 +216,7 @@ init(_Env) ->
 %% Description: Invoked when the object is terminating.
 %%----------------------------------------------------------------------
 terminate(_Reason, _State) ->
-	ok.
+    ok.
 
 %%----------------------------------------------------------------------
 %% Function   : code_change/3
@@ -163,7 +229,7 @@ terminate(_Reason, _State) ->
 %%              due to code replacement.
 %%----------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
-	{ok, State}.
+    {ok, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : handle_info/2
@@ -176,22 +242,74 @@ code_change(_OldVsn, State, _Extra) ->
 %% Description: Invoked when, for example, the server traps exits.
 %%----------------------------------------------------------------------
 handle_info(_Info, State) ->
-	{noreply, State}.
+    {noreply, State}.
 
-next_id([])    -> 1;
-next_id(Logs)  -> 1 + lists:max(lists:map(fun(Log) -> 'DsLogAdmin_Log':id(Log) end, Logs)).
+next_log_id(Record, Max) ->
+    max(Record#log_attributes.id, Max).
 
-lookup(Logs, Id) when is_integer(Id) andalso Id >= 0 ->
-	lists:filter(fun(L) -> 'DsLogAdmin_Log':id(L) =:= Id end, Logs);
-lookup(_Logs, _Id) ->
-	corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
-    
-check_max_size(Max_size) when is_integer(Max_size) andalso Max_size >= 0 ->
-	ok;
-check_max_size(_Max_size) ->
-	corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
+next_log_id(#state{table_name=TableName}) ->
+    F = fun () -> 1 + mnesia:foldl(fun next_log_id/2, 0, TableName) end,
+    {atomic, Id} = mnesia:transaction(F),
+    Id.
 
-new_log(OE_This, Id, Full_action, Max_size) ->
-    'DsLogAdmin_Common':check_full_action(Full_action),
-    check_max_size(Max_size),
-    'DsLogAdmin_BasicLog':oe_create([OE_This, Id, Full_action, Max_size]).
+lookup(State, Id) when is_integer(Id) andalso Id >= 0 ->
+    F = fun () -> mnesia:read(?LOG_ATTR_NAME(State), Id) end,
+    {atomic, Val} = mnesia:transaction(F),
+    Val;
+lookup(_State, _Id) ->
+    corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
+
+new_log(OE_This, #state{id=Fid, table_name=Name}, Id, FullAction, MaxSize) ->
+    'DsLogAdmin_Common':check_full_action(FullAction),
+    'DsLogAdmin_Common':check_max_size(MaxSize),
+    Attr = #log_attributes{id=Id, full_action=FullAction, max_size=MaxSize},
+    'DsLogAdmin_BasicLog':oe_create([{attributes, Attr},
+				     {table_name, Name},
+				     {factory, Fid, OE_This}]).
+
+next_log_mgr_id(Record, Max) ->
+    max(Record#log_factory.id, Max).
+
+next_log_mgr_id() ->
+    F = fun () -> 1 + mnesia:foldl(fun next_log_mgr_id/2, 0, oe_tlsbf) end,
+    {atomic, Id} = mnesia:transaction(F),
+    Id.
+
+log_attr_table_name(Id) ->
+    list_to_atom("oe_tlsbf_" ++ integer_to_list(Id) ++ "_log_attr").
+
+create_log_attr_table(Id) ->
+    LogAttrName = log_attr_table_name(Id),
+    case 'DsLogAdmin_Common':create_table(LogAttrName,
+					  record_info(fields, log_attributes),
+					  log_attributes) of
+	{ok, {_, LogAttrName}} ->
+	    {ok, LogAttrName};
+	{error, Reason} ->
+	    {error, Reason}
+    end.
+
+new_log_mgr(Id) ->
+    case create_log_attr_table(Id) of
+	{ok, LogAttrName} ->
+	    LogMgr = #log_factory{id=Id, objref=self()},
+	    F = fun () -> mnesia:write(oe_tlsbf, LogMgr, write)	end,
+	    {atomic, ok} = mnesia:transaction(F),
+	    {ok, #state{id=Id, table_name=LogAttrName}};
+	{error, Reason} ->
+	    {stop, Reason}
+    end.
+
+get_log_mgr_id(_) ->
+    case 'DsLogAdmin_Common':create_table(oe_tlsbf,
+					  record_info(fields, log_factory),
+					  log_factory) of
+	{ok, {existing_table, oe_tlsbf}} ->
+	    %% First non-existing log manager number
+	    %% TODO fix this
+	    {ok, next_log_mgr_id()};
+	{ok, {new_table, oe_tlsbf}} ->
+	    {ok, 1};
+	{error, Reason} ->
+	    {error, Reason}
+    end.

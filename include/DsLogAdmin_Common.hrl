@@ -20,25 +20,37 @@
 %%
 %%
 %%----------------------------------------------------------------------
-%% File    : dsLogAdminSup.erl
-%% Purpose : Contains supervisor specific callbacks.
+%% File    : DsLogAdmin_Common.hrl
+%% Purpose : Common definitions.
 %%----------------------------------------------------------------------
 
--module(dsLogAdminSup).
--behaviour(supervisor).
+%%----------------------------------------------------------------------
+%% Include Files
+%%----------------------------------------------------------------------
+-include("TimeBase.hrl").
+-include("DsLogAdmin.hrl").
 
--export([start_link/1, init/1, create_link/3]).
+-ifndef(DSLOGADMIN_COMMON_HRL).
+-define(DSLOGADMIN_COMMON_HRL, true).
 
-start_link(_) ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+%%----------------------------------------------------------------------
+%% Records
+%%----------------------------------------------------------------------
+-record(log_attributes,
+	{id,
+	 objref,
+	 full_action,
+	 max_size = 0,
+	 qos = ['DsLogAdmin':'QoSNone'()],
+	 max_record_life = 0,
+	 administrative_state = unlocked,
+	 forward_state = off,
+	 interval = #'TimeBase_IntervalT'{lower_bound=0, upper_bound=0},
+	 capacity_alarm_thresholds = [],
+	 week_mask = []}).
 
-init([]) ->
-    {ok, {{simple_one_for_one, 3, 10},
-	  [{"dsLogAdminChild",
-	   {?MODULE, create_link, []},
-	   transient, 100000, worker,
-	   ['DsLogAdmin_BasicLogFactory',
-	    'DsLogAdmin_Factory_impl']}]}}.
+-record(log_factory,
+	{id,
+	 objref}).
 
-create_link(Module, Env, ArgList) ->
-    Module:oe_create_link(Env, ArgList).
+-endif.
