@@ -65,18 +65,15 @@
 %% Records
 %%----------------------------------------------------------------------
 -record(state,
-	{attributes,
-	 table_name,
-	 log_attr_table_name,
-	 factory}).
+	{factory_id,
+	 factory,
+	 log_id}).
 
 %%----------------------------------------------------------------------
 %% Macros
 %%----------------------------------------------------------------------
 -define(ABSOLUTE_TIME_DIFF, 49947926400).
--define(LOG_NAME(S), S#state.table_name).
--define(ATTR_NAME(S), S#state.log_attr_table_name).
--define(LOG_ATTR(S, A), S#state.attributes#log_attributes.A).
+-define(LOG_NAME(S), 'DsLogAdmin_Common':log_table_name(S#state.factory_id, S#state.log_id)).
 
 %%======================================================================
 %% API Functions
@@ -115,7 +112,7 @@ my_factory(_OE_This, State) ->
 %% Description: 
 %%----------------------------------------------------------------------
 id(_OE_This, State) ->
-    {reply, ?LOG_ATTR(State, id), State}.
+    {reply, State#state.log_id, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : get_log_qos/2
@@ -128,7 +125,9 @@ id(_OE_This, State) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_log_qos(_OE_This, State) ->
-    {reply, ?LOG_ATTR(State, qos), State}.
+    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
+						      State#state.log_id),
+    {reply, Val#log_attributes.qos, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : set_log_qos/3
@@ -153,7 +152,9 @@ set_log_qos(_OE_This, _State, _Qos) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_max_record_life(_OE_This, State) ->
-    {reply, ?LOG_ATTR(State, max_record_life), State}.
+    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
+						      State#state.log_id),
+    {reply, Val#log_attributes.max_record_life, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : set_max_record_life/3
@@ -179,7 +180,9 @@ set_max_record_life(_OE_This, _State, _Life) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_max_size(_OE_This, State) ->
-    {reply, ?LOG_ATTR(State, max_size), State}.
+    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
+						      State#state.log_id),
+    {reply, Val#log_attributes.max_size, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : set_max_size/3
@@ -229,7 +232,9 @@ get_n_records(_OE_This, State) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_log_full_action(_OE_This, State) ->
-    {reply, ?LOG_ATTR(State, full_action), State}.
+    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
+						      State#state.log_id),
+    {reply, Val#log_attributes.full_action, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : set_log_full_action/3
@@ -255,7 +260,9 @@ set_log_full_action(_OE_This, State, Full_action) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_administrative_state(_OE_This, State) ->
-    {reply, ?LOG_ATTR(State, administrative_state), State}.
+    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
+						      State#state.log_id),
+    {reply, Val#log_attributes.administrative_state, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : set_administrative_state/3
@@ -284,7 +291,9 @@ set_administrative_state(_OE_This, _State, _AdminState) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_forwarding_state(_OE_This, State) ->
-    {reply, ?LOG_ATTR(State, forward_state), State}.
+    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
+						      State#state.log_id),
+    {reply, Val#log_attributes.forward_state, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : set_forwarding_state/3
@@ -327,7 +336,9 @@ get_operational_state(_OE_This, State) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_interval(_OE_This, State) ->
-    {reply, ?LOG_ATTR(State, interval), State}.
+    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
+						      State#state.log_id),
+    {reply, Val#log_attributes.interval, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : set_interval/3
@@ -369,7 +380,9 @@ get_availability_status(_OE_This, State) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_capacity_alarm_thresholds(_OE_This, State) ->
-    {reply, ?LOG_ATTR(State, capacity_alarm_thresholds), State}.
+    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
+						      State#state.log_id),
+    {reply, Val#log_attributes.capacity_alarm_thresholds, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : set_capacity_alarm_thresholds/3
@@ -404,7 +417,9 @@ set_capacity_alarm_thresholds(_OE_This, State, Threshs) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_week_mask(_OE_This, State) ->
-    {reply, ?LOG_ATTR(State, week_mask), State}.
+    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
+						      State#state.log_id),
+    {reply, Val#log_attributes.week_mask, State}.
 
 %%----------------------------------------------------------------------
 %% Function   : set_week_mask/3
@@ -481,9 +496,9 @@ retrieve(_OE_This, State, From_time, How_many)
        andalso is_integer(How_many) ->
     if
 	How_many < 0 ->
-	    M = 'DsLogAdmin_Common':do(qlc:q([L || L <- ?LOG_NAME(State), L#'DsLogAdmin_LogRecord'.time  < From_time]));
+	    M = 'DsLogAdmin_Common':do(qlc:q([L || L <- mnesia:table(?LOG_NAME(State)), L#'DsLogAdmin_LogRecord'.time  < From_time]));
 	true ->
-	    M = 'DsLogAdmin_Common':do(qlc:q([L || L <- ?LOG_NAME(State), L#'DsLogAdmin_LogRecord'.time >= From_time]))
+	    M = 'DsLogAdmin_Common':do(qlc:q([L || L <- mnesia:table(?LOG_NAME(State)), L#'DsLogAdmin_LogRecord'.time >= From_time]))
     end,
     {reply, {lists:sublist(M, abs(How_many)), corba:create_nil_objref()}, State};
 retrieve(_OE_This, _State, _From_time, _How_many) ->
@@ -690,31 +705,15 @@ flush(_OE_This, State) ->
 %% Raises     : -
 %% Description: Initiates the server
 %%----------------------------------------------------------------------
-init(Env) ->
-    Args = [attributes, table_name, factory],
-    case lists:map(fun (K) ->  lists:keyfind(K, 1, Env) end, Args) of
-	[false, _, _] ->
-	    {stop, {missing_arg, attributes}};
-	[_, false, _] ->
-	    {stop, {missing_arg, table_name}};
-	[_, _, false] ->
-	    {stop, {missing_arg, factory}};
-	[{attributes, Attr}, {table_name, LogAttrName}, {factory, Fid, Factory}] ->
-	    Id = Attr#log_attributes.id,
-	    LogName = log_table_name(Fid, Id),
-	    {ok, _} = 'DsLogAdmin_Common':create_table(LogName,
-						       record_info(fields, 'DsLogAdmin_LogRecord'),
-						       'DsLogAdmin_LogRecord'),
-	    State = #state{table_name=LogName,
-			   log_attr_table_name=LogAttrName,
-			   factory=Factory},
-	    {ok, save_attributes(State, Attr)}
-    end.
-
-save_attributes(State, Attributes) ->
-    F = fun () -> mnesia:write(?ATTR_NAME(State), Attributes, write) end,
-    {atomic, ok} = mnesia:transaction(F),
-    State#state{attributes=Attributes}.
+init({Fid, Factory, Id}) ->
+    TableName = 'DsLogAdmin_Common':log_table_name(Fid, Id),
+    {ok, _} = 'DsLogAdmin_Common':create_table(TableName,
+					       record_info(fields, 'DsLogAdmin_LogRecord'),
+					       'DsLogAdmin_LogRecord'),
+    State = #state{factory_id=Fid,
+		   factory=Factory,
+		   log_id=Id},
+    {ok, State}.
 
 
 %%----------------------------------------------------------------------
@@ -869,7 +868,7 @@ add_records(State, [Record | Records])
     F = fun () ->
 		mnesia:write(Table, NewRecord, write)
 	end,
-    {_, Val} = mnesia:transaction(F),
+    {_, _Val} = mnesia:transaction(F),
     add_records(State, Records);
 add_records(State, []) ->
     State;
@@ -886,6 +885,3 @@ delete_records(Name, [Oid | Oids], Count) ->
     delete_records(Name, Oids, N + Count);
 delete_records(_Name, [], Count) ->
     Count.
-
-log_table_name(Id, Fid) ->
-    list_to_atom("oe_tlsb_" ++ integer_to_list(Fid) ++ "_" ++ integer_to_list(Id)).

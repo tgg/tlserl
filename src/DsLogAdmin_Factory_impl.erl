@@ -85,15 +85,10 @@
 %%----------------------------------------------------------------------
 %% Records
 %%----------------------------------------------------------------------
--record(state,
-	{id,
-	 table_name}).
 
 %%----------------------------------------------------------------------
 %% Macros
 %%----------------------------------------------------------------------
--define(LOG_ATTR_NAME(S), S#state.table_name).
--define(LOG_ATTR_TABLE(S), mnesia:table(S#state.table_name)).
 
 %%======================================================================
 %% API Functions
@@ -149,7 +144,8 @@ create_with_id(OE_This, State, Id, Full_action, Max_size) ->
 %%              manager
 %%----------------------------------------------------------------------
 list_logs(_OE_This, State) ->
-    Query = qlc:q([L#log_attributes.objref || L <- ?LOG_ATTR_TABLE(State)]),
+    Table = 'DsLogAdmin_Common':log_attr_table_name(State),
+    Query = qlc:q([L#log_attributes.objref || L <- mnesia:table(Table)]),
     Logs = 'DsLogAdmin_Common':do(Query),
     {reply, Logs, State}.
 
@@ -181,7 +177,8 @@ find_log(_OE_This, State, Id) ->
 %% Description: Retrieves all logs id
 %%----------------------------------------------------------------------
 list_logs_by_id(_OE_This, State) ->
-    Query = qlc:q([L#log_attributes.id || L <- ?LOG_ATTR_TABLE(State)]),
+    Table = 'DsLogAdmin_Common':log_attr_table_name(State),
+    Query = qlc:q([L#log_attributes.id || L <- mnesia:table(Table)]),
     OE_Reply = 'DsLogAdmin_Common':do(Query),
     {reply, OE_Reply, State}.
 
@@ -201,8 +198,8 @@ list_logs_by_id(_OE_This, State) ->
 %%----------------------------------------------------------------------
 init(Env) ->
     case get_log_mgr_id(Env) of
-	{ok, Id} ->
-	    new_log_mgr(Id);
+	{ok, Fid} ->
+	    new_log_mgr(Fid);
 	{error, Reason} ->
 	    {stop, Reason}
     end.
@@ -247,25 +244,28 @@ handle_info(_Info, State) ->
 next_log_id(Record, Max) ->
     max(Record#log_attributes.id, Max).
 
-next_log_id(#state{table_name=TableName}) ->
+next_log_id(State) ->
+    TableName = 'DsLogAdmin_Common':log_attr_table_name(State),
     F = fun () -> 1 + mnesia:foldl(fun next_log_id/2, 0, TableName) end,
     {atomic, Id} = mnesia:transaction(F),
     Id.
 
 lookup(State, Id) when is_integer(Id) andalso Id >= 0 ->
-    F = fun () -> mnesia:read(?LOG_ATTR_NAME(State), Id) end,
-    {atomic, Val} = mnesia:transaction(F),
-    Val;
+    Val = 'DsLogAdmin_Common':lookup_log_attributes(State, Id),
+    [X#log_attributes.objref || X <- Val];
 lookup(_State, _Id) ->
     corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
 
-new_log(OE_This, #state{id=Fid, table_name=Name}, Id, FullAction, MaxSize) ->
+new_log(OE_This, State, Id, FullAction, MaxSize) ->
     'DsLogAdmin_Common':check_full_action(FullAction),
     'DsLogAdmin_Common':check_max_size(MaxSize),
-    Attr = #log_attributes{id=Id, full_action=FullAction, max_size=MaxSize},
-    'DsLogAdmin_BasicLog':oe_create([{attributes, Attr},
-				     {table_name, Name},
-				     {factory, Fid, OE_This}]).
+    Table = 'DsLogAdmin_Common':log_attr_table_name(State),
+    Log = 'DsLogAdmin_BasicLog':oe_create({State, OE_This, Id}),
+    Attr = #log_attributes{id=Id, objref=Log,
+			   full_action=FullAction, max_size=MaxSize},
+    F = fun () -> mnesia:write(Table, Attr, write) end,
+    {atomic, ok} = mnesia:transaction(F),
+    Log.
 
 next_log_mgr_id(Record, Max) ->
     max(Record#log_factory.id, Max).
@@ -275,11 +275,8 @@ next_log_mgr_id() ->
     {atomic, Id} = mnesia:transaction(F),
     Id.
 
-log_attr_table_name(Id) ->
-    list_to_atom("oe_tlsbf_" ++ integer_to_list(Id) ++ "_log_attr").
-
-create_log_attr_table(Id) ->
-    LogAttrName = log_attr_table_name(Id),
+create_log_attr_table(Fid) ->
+    LogAttrName = 'DsLogAdmin_Common':log_attr_table_name(Fid),
     case 'DsLogAdmin_Common':create_table(LogAttrName,
 					  record_info(fields, log_attributes),
 					  log_attributes) of
@@ -289,13 +286,13 @@ create_log_attr_table(Id) ->
 	    {error, Reason}
     end.
 
-new_log_mgr(Id) ->
-    case create_log_attr_table(Id) of
-	{ok, LogAttrName} ->
-	    LogMgr = #log_factory{id=Id, objref=self()},
+new_log_mgr(Fid) ->
+    case create_log_attr_table(Fid) of
+	{ok, _LogAttrName} ->
+	    LogMgr = #log_factory{id=Fid}, %% TODO: missing objref
 	    F = fun () -> mnesia:write(oe_tlsbf, LogMgr, write)	end,
 	    {atomic, ok} = mnesia:transaction(F),
-	    {ok, #state{id=Id, table_name=LogAttrName}};
+	    {ok, Fid};
 	{error, Reason} ->
 	    {stop, Reason}
     end.

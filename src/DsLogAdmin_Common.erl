@@ -1,3 +1,4 @@
+
 %%----------------------------------------------------------------------
 %%
 %% %CopyrightBegin%
@@ -37,7 +38,8 @@
 %%----------------------------------------------------------------------
 %% Internal Exports
 %%----------------------------------------------------------------------
--export([check_max_size/1, check_full_action/1, create_table/3, do/1]).
+-export([check_max_size/1, check_full_action/1, create_table/3, do/1,
+	 log_table_name/2, log_attr_table_name/1, lookup_log_attributes/2]).
 
 
 check_max_size(Max_size) when is_integer(Max_size) andalso Max_size >= 0 ->
@@ -75,4 +77,17 @@ create_table(Name, RecordInfo, RecordName) ->
 do(Q) ->
     F = fun () -> qlc:e(Q) end,
     {atomic, Val} = mnesia:transaction(F),
+    Val.
+
+log_table_name(Fid, Id) ->
+    list_to_atom("oe_tlsb_" ++ integer_to_list(Fid) ++ "_" ++ integer_to_list(Id)).
+
+log_attr_table_name(Fid) ->
+    list_to_atom("oe_tlsbf_" ++ integer_to_list(Fid) ++ "_log_attr").
+
+lookup_log_attributes(Fid, Id) ->
+    TableName = log_attr_table_name(Fid),
+    F = fun () -> mnesia:read(TableName, Id) end,
+    {atomic, Val} = mnesia:transaction(F),
+    io:format("Searched in ~p for Id: ~p, found: ~p~n", [TableName, Id, Val]),
     Val.
