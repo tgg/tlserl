@@ -89,5 +89,4 @@ lookup_log_attributes(Fid, Id) ->
     TableName = log_attr_table_name(Fid),
     F = fun () -> mnesia:read(TableName, Id) end,
     {atomic, Val} = mnesia:transaction(F),
-    io:format("Searched in ~p for Id: ~p, found: ~p~n", [TableName, Id, Val]),
     Val.
