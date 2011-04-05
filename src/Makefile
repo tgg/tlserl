@@ -18,6 +18,8 @@
 # %CopyrightEnd%
 #
 #
+# NOTE: This Makefile is directly inspired from Erlang ones.
+#
 
 include ../vsn.mk
 VSN=$(DSLOGADMIN_VSN)
@@ -141,3 +143,5 @@ $(EXTERNAL_TIMEBASE_HRL_FILES): TimeBase.idl
 
 $(EBIN)/%.beam: %.erl
 	$(ERLC) $(ERL_COMPILE_FLAGS) -o$(EBIN) $<
+
+.PHONY: clean opt
