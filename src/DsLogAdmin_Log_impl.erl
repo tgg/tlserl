@@ -468,7 +468,6 @@ set_week_mask(_OE_This, State, Masks) ->
 %%----------------------------------------------------------------------
 'query'(_OE_This, State, Grammar, Constraint) ->
     OE_Reply = filter(State, Grammar, Constraint, fun match_record/2),
-    io:format("query returning ~p~n", [OE_Reply]),
     {reply, {OE_Reply, corba:create_nil_objref()}, State}.
 
 %%----------------------------------------------------------------------
