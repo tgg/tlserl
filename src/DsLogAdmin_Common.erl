@@ -66,6 +66,8 @@ create_table(Name, RecordInfo, RecordName) ->
 	false ->
 	    case mnesia:create_table(Name,
 				     [{attributes, RecordInfo},
+				      %% TODO this *must* be configurable
+				      {disc_copies, [node()]},
 				      {record_name, RecordName}]) of
 		{atomic, ok} ->
 		    {ok, {new_table, Name}};
