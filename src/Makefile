@@ -144,4 +144,7 @@ $(EXTERNAL_TIMEBASE_HRL_FILES): TimeBase.idl
 $(EBIN)/%.beam: %.erl
 	$(ERLC) $(ERL_COMPILE_FLAGS) -o$(EBIN) $<
 
-.PHONY: clean opt
+dist:
+	hg archive --prefix=tlserl-$(DSLOGADMIN_VSN) ../../tlserl-$(DSLOGADMIN_VSN).tar.gz
+
+.PHONY: clean opt dist
