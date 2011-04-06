@@ -74,6 +74,7 @@
 %%----------------------------------------------------------------------
 -define(ABSOLUTE_TIME_DIFF, 49947926400).
 -define(LOG_NAME(S), 'DsLogAdmin_Common':log_table_name(S#state.factory_id, S#state.log_id)).
+-define(LOOKUP_ATTRIBUTES(S), 'DsLogAdmin_Common':lookup_log_attributes(S#state.factory_id, S#state.log_id)).
 
 %%======================================================================
 %% API Functions
@@ -125,8 +126,7 @@ id(_OE_This, State) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_log_qos(_OE_This, State) ->
-    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
-						      State#state.log_id),
+    [Val] = ?LOOKUP_ATTRIBUTES(State),
     {reply, Val#log_attributes.qos, State}.
 
 %%----------------------------------------------------------------------
@@ -152,8 +152,7 @@ set_log_qos(_OE_This, _State, _Qos) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_max_record_life(_OE_This, State) ->
-    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
-						      State#state.log_id),
+    [Val] = ?LOOKUP_ATTRIBUTES(State),
     {reply, Val#log_attributes.max_record_life, State}.
 
 %%----------------------------------------------------------------------
@@ -180,8 +179,7 @@ set_max_record_life(_OE_This, _State, _Life) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_max_size(_OE_This, State) ->
-    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
-						      State#state.log_id),
+    [Val] = ?LOOKUP_ATTRIBUTES(State),
     {reply, Val#log_attributes.max_size, State}.
 
 %%----------------------------------------------------------------------
@@ -232,8 +230,7 @@ get_n_records(_OE_This, State) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_log_full_action(_OE_This, State) ->
-    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
-						      State#state.log_id),
+    [Val] = ?LOOKUP_ATTRIBUTES(State),
     {reply, Val#log_attributes.full_action, State}.
 
 %%----------------------------------------------------------------------
@@ -260,8 +257,7 @@ set_log_full_action(_OE_This, State, Full_action) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_administrative_state(_OE_This, State) ->
-    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
-						      State#state.log_id),
+    [Val] = ?LOOKUP_ATTRIBUTES(State),
     {reply, Val#log_attributes.administrative_state, State}.
 
 %%----------------------------------------------------------------------
@@ -291,8 +287,7 @@ set_administrative_state(_OE_This, _State, _AdminState) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_forwarding_state(_OE_This, State) ->
-    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
-						      State#state.log_id),
+    [Val] = ?LOOKUP_ATTRIBUTES(State),
     {reply, Val#log_attributes.forward_state, State}.
 
 %%----------------------------------------------------------------------
@@ -336,8 +331,7 @@ get_operational_state(_OE_This, State) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_interval(_OE_This, State) ->
-    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
-						      State#state.log_id),
+    [Val] = ?LOOKUP_ATTRIBUTES(State),
     {reply, Val#log_attributes.interval, State}.
 
 %%----------------------------------------------------------------------
@@ -380,8 +374,7 @@ get_availability_status(_OE_This, State) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_capacity_alarm_thresholds(_OE_This, State) ->
-    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
-						      State#state.log_id),
+    [Val] = ?LOOKUP_ATTRIBUTES(State),
     {reply, Val#log_attributes.capacity_alarm_thresholds, State}.
 
 %%----------------------------------------------------------------------
@@ -417,8 +410,7 @@ set_capacity_alarm_thresholds(_OE_This, State, Threshs) ->
 %% Description: 
 %%----------------------------------------------------------------------
 get_week_mask(_OE_This, State) ->
-    [Val] = 'DsLogAdmin_Common':lookup_log_attributes(State#state.factory_id,
-						      State#state.log_id),
+    [Val] = ?LOOKUP_ATTRIBUTES(State),
     {reply, Val#log_attributes.week_mask, State}.
 
 %%----------------------------------------------------------------------
