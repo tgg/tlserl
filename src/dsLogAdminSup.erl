@@ -29,13 +29,14 @@
 
 -export([start_link/1, init/1, create_link/3]).
 
-start_link(_) ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+start_link(Args) ->
+    %% Calls ?MODULE:init(Args) below.
+    supervisor:start_link({local, ?MODULE}, ?MODULE, Args).
 
 init([]) ->
     {ok, {{simple_one_for_one, 3, 10},
 	  [{"dsLogAdminChild",
-	   {?MODULE, create_link, []},
+	   {?MODULE, create_link, []}, %% MFA: calls create_link/3 below.
 	   transient, 100000, worker,
 	   ['DsLogAdmin_BasicLogFactory',
 	    'DsLogAdmin_Factory_impl']}]}}.
