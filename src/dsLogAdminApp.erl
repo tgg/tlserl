@@ -36,7 +36,8 @@
 %% Exports
 %%----------------------------------------------------------------------
 %% API external
--export([install/0, start/0, stop/0, uninstall/0, start_logmgr/0]).
+-export([install/0, start/0, stop/0, uninstall/0,
+	 start_logmgr/0, start_logmgr/1]).
 
 %% application callbacks
 -export([start/2, stop/1]).
@@ -126,7 +127,10 @@ stop() ->
     application:stop(dsLogAdmin).
 
 start_logmgr() ->
-    Spec = ['DsLogAdmin_BasicLogFactory', nothing,
+    start_logmgr(nothing).
+
+start_logmgr(Options) ->
+    Spec = ['DsLogAdmin_BasicLogFactory', Options,
 	    [{sup_child, true},
 	     {regname, {local, oe_dsBasicLogFactory}}]],
     case supervisor:start_child(dsLogAdminSup, Spec) of

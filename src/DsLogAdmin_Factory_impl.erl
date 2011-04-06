@@ -297,14 +297,17 @@ new_log_mgr(Fid) ->
 	    {stop, Reason}
     end.
 
-get_log_mgr_id(_) ->
+get_log_mgr_id(Id) ->
     case 'DsLogAdmin_Common':create_table(oe_tlsbf,
 					  record_info(fields, log_factory),
 					  log_factory) of
 	{ok, {existing_table, oe_tlsbf}} ->
-	    %% First non-existing log manager number
-	    %% TODO fix this
-	    {ok, next_log_mgr_id()};
+	    %% First non-existing log manager number, unless specified
+	    if is_integer(Id) ->
+		    {ok, Id}; %% TODO: add a safety check
+	       true ->
+		    {ok, next_log_mgr_id()}
+	    end;
 	{ok, {new_table, oe_tlsbf}} ->
 	    {ok, 1};
 	{error, Reason} ->
