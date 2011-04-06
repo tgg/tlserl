@@ -8,6 +8,8 @@ Bugs
 * when a log crash, the logmgr crashes as well => spawn
 * Check all argument types for CORBA calls
 * many race conditions (check for an id then creating it)
+* Setter not working
+* Policies not honoured
 
 Ideas
 =====
@@ -19,7 +21,7 @@ Misc
 ====
 
 * Decide style
-* Use mnesia:select
+* Use mnesia:select?
 
 Features
 ========
