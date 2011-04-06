@@ -867,7 +867,7 @@ add_records(State, [Record | Records])
     F = fun () ->
 		mnesia:write(Table, NewRecord, write)
 	end,
-    {_, _Val} = mnesia:transaction(F),
+    {atomic, ok} = mnesia:transaction(F),
     add_records(State, Records);
 add_records(State, []) ->
     State;
