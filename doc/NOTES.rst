@@ -1,89 +1,153 @@
-======
-tlserl
-======
+=========================================
+Telecom Log Service Erlang Implementation
+=========================================
 
-``tlserl`` is a basic CORBA Telecom Log Service implementation
-written in Erlang.
+Telecom Log Service Erlang Implementation (``tlserl``) is an Erlang
+implementation of the CORBA Telecom Log Service for the basic log only.
 
-RUNNING
+Important object types being used in the basic log service::
+
+                <<creates>>           <<contains>>
+  log manager ---------------> logs ◈--------------> log records
+
+* The **log manager** can be used to create, list, find or destroy
+  (unimplemented) a **log**
+* **Log records** can be added, deleted, and searched for in a given log
+
+For more information on the TelecomLogService, see:
+  http://www.omg.org/spec/TLOG/
+
+The project is hosted on Bitbucket:
+  https://bitbucket.org/tgg/tlserl/
+
+``tlscli`` is a client that can be used with ``tlserl``:
+  https://launchpad.net/tlscli
+
+
+Prerequisites
+=============
+
+To install ``tlserl``, you need an Erlang installation and GNU make. It was
+tested with Erlang R14B02.
+
+
+Installing
+==========
+
+We'll assume that ``tlserl`` was unpacked into ``/some/path/tlserl-$V``, where
+``$V`` is the version of ``tlserl``.
+
+To compile the software, go to ``src/`` and run ``make``. This will compile all
+needed ``.erl`` source files into ``/some/path/tlserl-$V/ebin``.
+
+That's it.
+
+
+Running
 =======
 
-High level
-----------
+After `Installing`_ the software, you can run Erlang from the
+``ebin/`` directory where files were compiled.
 
-Creating a log factory and a log
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Create a mnesia schema::
+First time
+~~~~~~~~~~
 
-   mnesia:create_schema([node()]).
+If you don't have one already, create a Mnesia_ schema::
 
-2. Launch orber::
+   1> mnesia:create_schema([node()]).
+   ok
 
-   orber:jump_start(1234).
+And launch Orber_, e.g. using::
 
-3. [OPTIONAL?] Install dsLogAdminApp into the IFR using::
+   2> orber:jump_start(1234).
+   =INFO REPORT==== 7-Apr-2011::22:19:04 ===
+   ======= Orber Execution Environment ======
+   Orber version.................: 3.6.20
+   Orber domain..................: 127.0.1.1:1234
+   IIOP port number..............: 1234
+   IIOP NAT port number..........: 1234
+   Interface(s)..................: ["127.0.1.1"]
+   Interface(s) NAT..............: ["127.0.1.1"]
+   Local Interface (default).....: []
+   Nodes in domain...............: ['nonode@nohost']
+   GIOP version (default)........: 1.1
+   IIOP out timeout..............: infinity msec
+   IIOP out connection timeout...: infinity msec
+   IIOP setup connection timeout.: infinity msec
+   IIOP out ports................: 0
+   IIOP out ports attempts.......: 1
+   IIOP out ports random.........: false
+   IIOP out connections..........: []
+   IIOP out connections (pending): []
+   IIOP out keepalive............: false
+   IIOP in connections...........: []
+   IIOP in connection timeout....: infinity msec
+   IIOP in keepalive.............: false
+   IIOP max fragments............: infinity
+   IIOP max in requests..........: infinity
+   IIOP max in connections.......: infinity
+   IIOP backlog..................: 5
+   IIOP ACL......................: []
+   IIOP maximum packet size......: infinity
+   Object Keys GC interval.......: infinity
+   Using Interceptors............: false
+   Using Local Interceptors......: false
+   Debug Level...................: 0
+   orbInitRef....................: undefined
+   orbDefaultInitRef.............: undefined
+   System Flags Set..............: -
+   =========================================
 
-   dsLogAdminApp:install().
+You can now start the dsLogAdminApp application::
 
-4. Start the dsLogAdminApp application::
+   3> dsLogAdminApp:start().
+   ok
 
-   dsLogAdminApp:start().
+and create a new log manager::
 
-5. Create a new log factory::
+   4> F = dsLogAdminApp:start_log_mgr().
+   =INFO REPORT==== 7-Apr-2011::22:24:07 ===
+   'DsLogAdmin_Factory_impl' initializing with nothing
+   {'DsLogAdmin_BasicLogFactory',registered,
+                                 oe_dsBasicLogFactory,
+                                 <<131,100,0,9,117,110,100,101,102,105,110,101,100>>,
+                                 0,0}
 
-   F = dsLogAdminApp:start_log_mgr().
+After that, ``tlserl`` is ready for use. If you need to communicate the
+IOR for a client, you can use ``corba:object_to_string(F).``
 
-6. To retrieve the IOR associated to the log manager instance, use::
+Next times
+~~~~~~~~~~
 
-   corba:object_to_string(F).
+Restart mnesia::
 
-7. [OPTIONAL] To create a new log using this factory::
+   1> mnesia:start().
+   ok
 
-   {L,Id}='DsLogAdmin_BasicLogFactory':create(F, 0, 0).
+as well as orber::
 
+   2> orber:start().
+   ok
 
-Resuming a session
-~~~~~~~~~~~~~~~~~~
-1. Restart mnesia::
+You can now start the dsLogAdminApp application::
 
-   mnesia:start().
+   3> dsLogAdminApp:start().
+   ok
 
-2. Restart orber::
+To restore the log manager previously created, use::
 
-   orber:start().
+   4> F = dsLogAdminApp:start_log_mgr(1).
+   =INFO REPORT==== 7-Apr-2011::22:24:07 ===
+   'DsLogAdmin_Factory_impl' initializing with nothing
+   {'DsLogAdmin_BasicLogFactory',registered,
+                                 oe_dsBasicLogFactory,
+                                 <<131,100,0,9,117,110,100,101,102,105,110,101,100>>,
+                                 0,0}
 
-3. [OPTIONAL?] Install dsLogAdminApp into the IFR using::
+The ``1`` is the ID of the first log manager created.
 
-   dsLogAdminApp:install().
+After that, ``tlserl`` is ready for use. Again, if you need to communicate the
+IOR for a client, you can use ``corba:object_to_string(F).``
 
-4. Start the dsLogAdminApp application::
-
-   dsLogAdminApp:start().
-
-5. Reuse previous log factory (id defaults to 1)::
-
-   F = dsLogAdminApp:start_log_mgr(1).
-
-6. To retrieve the IOR associated to the log manager instance, use::
-
-   corba:object_to_string(F).
-
-
-Low level
----------
-
-1. Start orber::
-
-   orber:jump_start(1234).
-
-2. Create a new log factory::
-
-   F='DsLogAdmin_BasicLogFactory':oe_create().
-
-3. Create a new log using this factory::
-
-   {L,Id}='DsLogAdmin_BasicLogFactory':create(F, 0, 0).
-
-4. To retrieve the IOR associated to the log manager instance, use::
-
-   corba:object_to_string(F).
+.. _Orber: http://www.erlang.org/doc/man/orber.html
+.. _Mnesia: http://www.erlang.org/doc/man/mnesia.html
