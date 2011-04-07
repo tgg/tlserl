@@ -159,10 +159,18 @@ list_logs(_OE_This, State) ->
 %% Raises     : 
 %% Description: Retrieves log with id `Id'
 %%----------------------------------------------------------------------
-find_log(_OE_This, State, Id) ->
+find_log(OE_This, State, Id) ->
     OE_Reply = case lookup(State, Id) of
 		   []    -> corba:create_nil_objref();
-		   [H|_] -> H
+		   [H|_] ->
+		       case corba_object:non_existent(H) of
+			   true ->
+			       %% We recreate the object reference
+			       Table = 'DsLogAdmin_Common':log_table_name(State, Id),
+			       corba_create({State, OE_This, Id, Table}, Table);
+			   false ->
+			       H
+		       end
 	       end,
     {reply, OE_Reply, State}.
 
@@ -260,14 +268,16 @@ lookup(State, Id) when is_integer(Id) andalso Id >= 0 ->
 lookup(_State, _Id) ->
     corba:raise(#'BAD_PARAM'{completion_status=?COMPLETED_NO}).
 
+corba_create(Params, Name) ->
+    'DsLogAdmin_BasicLog':oe_create_link(Params,
+					 [{regname, {local, Name}}]).
+
 new_log(OE_This, State, Id, FullAction, MaxSize) ->
     'DsLogAdmin_Common':check_full_action(FullAction),
     'DsLogAdmin_Common':check_max_size(MaxSize),
     AttrTable = 'DsLogAdmin_Common':log_attr_table_name(State),
     Table = 'DsLogAdmin_Common':log_table_name(State, Id),
-    io:format("Table: ~p, Attribute table: ~p~n", [Table, AttrTable]),
-    Log = 'DsLogAdmin_BasicLog':oe_create_link({State, OE_This, Id, Table},
-					       [{regname, {local, Table}}]),
+    Log = corba_create({State, OE_This, Id, Table}, Table),
     Attr = #log_attributes{id=Id, objref=Log,
 			   full_action=FullAction, max_size=MaxSize},
     F = fun () -> mnesia:write(AttrTable, Attr, write) end,
