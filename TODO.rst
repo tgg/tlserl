@@ -5,14 +5,16 @@ TODO for ``tlserl``
 Bugs
 ====
 
+* factory not stored.
 * when a log crash, the logmgr crashes as well => spawn
 * Check all argument types for CORBA calls
 * many race conditions (check for an id then creating it)
-* Setter not working
+* Setters are not working
 * Policies not honoured
 
 Ideas
 =====
+* use a single factory?
 * persistent IOR? What about imr?
 * use disk_log instead?
 * use error_logger
@@ -20,7 +22,6 @@ Ideas
 Misc
 ====
 
-* Decide style
 * Use mnesia:select?
 
 Features
