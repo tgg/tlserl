@@ -27,7 +27,7 @@ Creating a log factory and a log
 
 4. Create a new log factory::
 
-   F = dsLogAdminApp:start_logmgr().
+   F = dsLogAdminApp:start_log_mgr().
 
 5. Create a new log using this factory::
 
@@ -53,7 +53,7 @@ Resuming a session
 
 4. Reuse previous log factory (id defaults to 1)::
 
-   F = dsLogAdminApp:start_logmgr(1).
+   F = dsLogAdminApp:start_log_mgr(1).
 
 5. Create a new log using this factory::
 
