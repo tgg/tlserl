@@ -27,7 +27,8 @@ VSN=$(DSLOGADMIN_VSN)
 DOC = ../doc
 RST = \
     $(DOC)/DESIGN.rst \
-    $(DOC)/NOTES.rst
+    $(DOC)/README.rst \
+    $(DOC)/TODO.rst
 HTML = $(RST:.rst=.html)
 
 EBIN = ../ebin

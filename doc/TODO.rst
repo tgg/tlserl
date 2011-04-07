@@ -15,9 +15,9 @@ Bugs and limitations
 Ideas
 =====
 * use a single factory? start_log_mgr is not user friendly:
-  - make it return the factory id as well as the object reference?
-  - make it accept any name that will be used as the log process registered
-    name?
+   - make it return the factory id as well as the object reference?
+   - make it accept any name that will be used as the log process registered
+     name?
 * persistent IOR? What about imr?
 * use disk_log instead?
 * add error_logger info, warning and errors where appropriate
@@ -56,17 +56,20 @@ Roadmap
 =======
 
 1. Implement ``write``, ``query`` and ``delete``. COMPLETED ON 2011-01-01
-2. Mnesia-ification. COMPLETED ON 2011-04-07
-   Package as an app. Licence. COMPLETED ON 2011-01-16
-   Go public. COMPLETED ON 2011-04-07
+2. Real app:
+
+   * Mnesia-ification. COMPLETED ON 2011-04-07
+   * Package as an app. Licence. COMPLETED ON 2011-01-16
+   * Go public. COMPLETED ON 2011-04-07
 3. Handle iterator and record attributes
    Possibly: write ETCL -> qlc:Q converter.
+
    See http://dukesoferl.blogspot.com/2009/08/metaprogramming-with-ctexpand.html
 4. Implement record life, size, etc. logic
 5. Add ``copy`` and remaining things
 
 
-Low level
+Dev notes
 =========
 
 1. Start orber::
