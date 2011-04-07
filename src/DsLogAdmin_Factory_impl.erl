@@ -24,7 +24,7 @@
 %% Purpose : Implementation of DsLogAdmin:BasicLogFactory.
 %%----------------------------------------------------------------------
 %% Table   : oe_tlsbf
-%% Purpose : contains the list of all LogMgr implementations, along
+%% Purpose : contains the list of all LogMgr created processes, along
 %%           with the associated object reference:
 %%
 %%  +------------+------------------+
@@ -197,6 +197,9 @@ list_logs_by_id(_OE_This, State) ->
 %% Description: Initiates server, creating oe_tlsbf table if needed.
 %%----------------------------------------------------------------------
 init(Env) ->
+    error_logger:info_msg("~p initializing with ~p~n", [?MODULE, Env]),
+    %% To get called when the application is stopped
+    process_flag(trap_exit, true),
     case get_log_mgr_id(Env) of
 	{ok, Fid} ->
 	    new_log_mgr(Fid);
@@ -212,7 +215,8 @@ init(Env) ->
 %% Raises     : -
 %% Description: Invoked when the object is terminating.
 %%----------------------------------------------------------------------
-terminate(_Reason, _State) ->
+terminate(Reason, _State) ->
+    error_logger:info_msg("~p terminating with ~p~n", [?MODULE, Reason]),
     ok.
 
 %%----------------------------------------------------------------------
@@ -259,11 +263,14 @@ lookup(_State, _Id) ->
 new_log(OE_This, State, Id, FullAction, MaxSize) ->
     'DsLogAdmin_Common':check_full_action(FullAction),
     'DsLogAdmin_Common':check_max_size(MaxSize),
-    Table = 'DsLogAdmin_Common':log_attr_table_name(State),
-    Log = 'DsLogAdmin_BasicLog':oe_create({State, OE_This, Id}),
+    AttrTable = 'DsLogAdmin_Common':log_attr_table_name(State),
+    Table = 'DsLogAdmin_Common':log_table_name(State, Id),
+    io:format("Table: ~p, Attribute table: ~p~n", [Table, AttrTable]),
+    Log = 'DsLogAdmin_BasicLog':oe_create_link({State, OE_This, Id, Table},
+					       [{regname, {local, Table}}]),
     Attr = #log_attributes{id=Id, objref=Log,
 			   full_action=FullAction, max_size=MaxSize},
-    F = fun () -> mnesia:write(Table, Attr, write) end,
+    F = fun () -> mnesia:write(AttrTable, Attr, write) end,
     {atomic, ok} = mnesia:transaction(F),
     Log.
 
