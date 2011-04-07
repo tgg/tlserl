@@ -696,8 +696,9 @@ flush(_OE_This, State) ->
 %% Raises     : -
 %% Description: Initiates the server
 %%----------------------------------------------------------------------
-init({Fid, Factory, Id}) ->
-    TableName = 'DsLogAdmin_Common':log_table_name(Fid, Id),
+init({Fid, Factory, Id, TableName}=Env) ->
+    error_logger:info_msg("~p initializing with ~p~n", [?MODULE, Env]),
+    process_flag(trap_exit, true),
     {ok, _} = 'DsLogAdmin_Common':create_table(TableName,
 					       record_info(fields, 'DsLogAdmin_LogRecord'),
 					       'DsLogAdmin_LogRecord'),
@@ -715,7 +716,8 @@ init({Fid, Factory, Id}) ->
 %% Raises     : -
 %% Description: Invoked when the object is terminating.
 %%----------------------------------------------------------------------
-terminate(_Reason, _State) ->
+terminate(Reason, _State) ->
+    error_logger:info_msg("~p terminating with ~p~n", [?MODULE, Reason]),
     ok.
 
 

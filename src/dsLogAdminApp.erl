@@ -130,6 +130,7 @@ start_log_mgr() ->
     start_log_mgr(nothing).
 
 start_log_mgr(Options) ->
+    %% ChildSpec completes the specification given in dsLogAdminSup:init/1
     Spec = ['DsLogAdmin_BasicLogFactory', Options,
 	    [{sup_child, true},
 	     {regname, {local, oe_dsBasicLogFactory}}]],
