@@ -24,6 +24,12 @@
 include ../vsn.mk
 VSN=$(DSLOGADMIN_VSN)
 
+DOC = ../doc
+RST = \
+    $(DOC)/DESIGN.rst \
+    $(DOC)/NOTES.rst
+HTML = $(RST:.rst=.html)
+
 EBIN = ../ebin
 EMULATOR = beam
 ERL_COMPILE_FLAGS = +debug_info
@@ -124,7 +130,7 @@ ERL_COMPILE_FLAGS += \
 opt: $(TARGET_FILES) $(APP_TARGET) $(APPUP_TARGET)
 
 clean:
-	rm -Rf $(EXTERNAL_DSLOGADMIN_HRL_FILES) $(EXTERNAL_TIMEBASE_HRL_FILES) $(EBIN)/* *~ $(GEN_DSLOGADMIN_ERL_FILES)
+	rm -Rf $(EXTERNAL_DSLOGADMIN_HRL_FILES) $(EXTERNAL_TIMEBASE_HRL_FILES) $(EBIN)/* *~ $(GEN_DSLOGADMIN_ERL_FILES) $(DOC)/*.html
 
 $(APP_TARGET): $(APP_SRC) ../vsn.mk
 	sed -e 's;%VSN%;$(VSN);' $< > $@
@@ -147,4 +153,9 @@ $(EBIN)/%.beam: %.erl
 dist:
 	hg archive --prefix=tlserl-$(DSLOGADMIN_VSN) ../../tlserl-$(DSLOGADMIN_VSN).tar.gz
 
-.PHONY: clean opt dist
+%.html: %.rst
+	rst2html $< > $@
+
+doc: $(HTML)
+
+.PHONY: clean opt dist doc
