@@ -13,51 +13,56 @@ High level
 
 Creating a log factory and a log
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1. Start orber::
+1. Create a mnesia schema::
+
+   mnesia:create_schema([node()]).
+
+2. Launch orber::
 
    orber:jump_start(1234).
 
-2. Install dsLogAdminApp into the IFR using::
+3. [OPTIONAL?] Install dsLogAdminApp into the IFR using::
 
    dsLogAdminApp:install().
 
-3. Start the dsLogAdminApp application::
+4. Start the dsLogAdminApp application::
 
    dsLogAdminApp:start().
 
-4. Create a new log factory::
+5. Create a new log factory::
 
    F = dsLogAdminApp:start_log_mgr().
-
-5. Create a new log using this factory::
-
-   {L,Id}='DsLogAdmin_BasicLogFactory':create(F, 0, 0).
 
 6. To retrieve the IOR associated to the log manager instance, use::
 
    corba:object_to_string(F).
 
+7. [OPTIONAL] To create a new log using this factory::
+
+   {L,Id}='DsLogAdmin_BasicLogFactory':create(F, 0, 0).
+
+
 Resuming a session
 ~~~~~~~~~~~~~~~~~~
-1. Start orber::
+1. Restart mnesia::
 
-   orber:jump_start(1234).
+   mnesia:start().
 
-2. Install dsLogAdminApp into the IFR using::
+2. Restart orber::
+
+   orber:start().
+
+3. [OPTIONAL?] Install dsLogAdminApp into the IFR using::
 
    dsLogAdminApp:install().
 
-3. Start the dsLogAdminApp application::
+4. Start the dsLogAdminApp application::
 
    dsLogAdminApp:start().
 
-4. Reuse previous log factory (id defaults to 1)::
+5. Reuse previous log factory (id defaults to 1)::
 
    F = dsLogAdminApp:start_log_mgr(1).
-
-5. Create a new log using this factory::
-
-   {L,Id}='DsLogAdmin_BasicLogFactory':create(F, 0, 0).
 
 6. To retrieve the IOR associated to the log manager instance, use::
 
